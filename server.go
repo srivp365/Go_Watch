@@ -11,14 +11,15 @@ type Hub struct {
 }
 
 type Room struct {
-	roomID    string
-	clientIDs map[string]*Client
-	videoID   string
-	timestamp float64
-	playing   bool
-	eventCh   chan *RoomEvent
-	tickerCh  <-chan time.Time
-	mu        sync.Mutex
+	roomID     string
+	clientIDs  map[string]*Client
+	videoID    string
+	timestamp  float64
+	playing    bool
+	eventCh    chan *RoomEvent
+	tickerCh   <-chan time.Time
+	lastUpdate time.Time
+	mu         sync.Mutex
 }
 
 type RoomEvent struct {
@@ -70,9 +71,6 @@ func createRoom(roomID string) (r *Room) {
 }
 
 func (r *Room) setPlaying(playing bool) {
-	// ensure only 1 client can pause / play at once
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.playing = playing
 }
 
