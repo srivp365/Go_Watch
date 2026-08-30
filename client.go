@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -19,12 +20,22 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func handler(w http.ResponseWriter, r *http.Request) (c *Client) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+func (h *Hub) handler(w http.ResponseWriter, r *http.Request) (c *Client) {
+	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
+	roomID := r.URL.Query().Get("room")
+	room := h.ccRoom(roomID, newClient)
 
-	return &Client{}
+	newClient := &Client{
+		id:   uuid.NewString(),
+		conn: wsConn,
+		send: make(chan []byte),
+		room: room,
+	}
+
+	return newClient
+
 }

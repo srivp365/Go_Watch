@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -31,29 +30,33 @@ type RoomEvent struct {
 }
 
 // create / check room => ccRoom
-func (h *Hub) ccRoom(roomID string, clientId *Client) {
-	if room, ok := h.roomIDs[roomID]; ok {
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		re := &RoomEvent{
-			roomID:    roomID,
-			videoID:   "",
-			timestamp: 0,
-			event:     "join",
-			client:    clientId,
-		}
-		room.eventCh <- re
-		fmt.Printf("Room found! Adding %s to room %s", clientId, room.roomID)
-	} else {
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		h.roomIDs[roomID] = createRoom(roomID, clientId)
+func (h *Hub) ccRoom(roomID string, client *Client) (r *Room) {
+	h.mu.Lock()
+
+	room, ok := h.roomIDs[roomID]
+
+	if !ok {
+		room = createRoom(roomID)
+		h.roomIDs[roomID] = room
+		go room.Run()
 
 	}
+
+	re := &RoomEvent{
+		roomID: roomID,
+		event:  "join",
+		client: client,
+	}
+
+	room.eventCh <- re
+
+	h.mu.Unlock()
+
+	return
 }
 
-func createRoom(roomID string, clien *Client) (r *Room) {
-	return &Room{
+func createRoom(roomID string) (r *Room) {
+	newRoom := &Room{
 		roomID:    roomID,
 		clientIDs: make(map[string]*Client),
 		videoID:   "",
@@ -62,6 +65,8 @@ func createRoom(roomID string, clien *Client) (r *Room) {
 		eventCh:   make(chan *RoomEvent),
 		tickerCh:  make(<-chan time.Time),
 	}
+
+	return newRoom
 }
 
 func (r *Room) setPlaying(playing bool) {
@@ -107,7 +112,7 @@ func (r *Room) Run() {
 			}
 		case heartbeat := <-r.tickerCh:
 			// i know this is incorrect, will fix it.
-			r.timestamp = heartbeat
+			r.timestamp = float64(heartbeat.Second())
 		}
 	}
 }
